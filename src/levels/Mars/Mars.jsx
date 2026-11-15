@@ -4,6 +4,14 @@ import marsBg from './Mars.png';
 import outpostBg from '../Outpost/Outpost.png';
 import roverSheet from './mars_rover_sprites_transparent.png';
 import { SciFiButton } from '../../game/ui/SciFiButton.js';
+import batteryAsset from '../../game/ui/graphHUD/battery.png';
+import droneHealthAsset from '../../game/ui/graphHUD/DroneHealth.png';
+import { BatteryHUD, BATTERY_HUD_TEXTURE_KEY } from '../../game/ui/BatteryHUD.js';
+import { DroneHealthHUD, DRONE_HEALTH_HUD_TEXTURE_KEY } from '../../game/ui/DroneHealthHUD.js';
+import {
+  reduceBattery, regainBattery, resetBattery, subscribeBattery, currentBattery, MAX_BATTERY,
+  reduceDroneHealth, regainDroneHealth, resetDroneHealth, subscribeDroneHealth, currentDroneHealth, MAX_DRONE_HEALTH,
+} from '../../game/gameState.js';
 
 /**
  * ============================================================================
@@ -39,6 +47,8 @@ export class MarsScene extends Phaser.Scene {
     this.rover = null;
     this.titleText = null;
     this.navButton = null;
+    this.batteryHud = null;
+    this.droneHealthHud = null;
     this.uiCamera = null;
     this.currentDirection = 'down';
     this.cursors = null;
@@ -65,10 +75,20 @@ export class MarsScene extends Phaser.Scene {
         frameHeight: 362,
       });
     }
+    if (!this.textures.exists(BATTERY_HUD_TEXTURE_KEY)) {
+      this.load.image(BATTERY_HUD_TEXTURE_KEY, batteryAsset);
+    }
+    if (!this.textures.exists(DRONE_HEALTH_HUD_TEXTURE_KEY)) {
+      this.load.image(DRONE_HEALTH_HUD_TEXTURE_KEY, droneHealthAsset);
+    }
   }
 
   create() {
     const { width, height } = this.scale;
+
+    // Mars scene starts with full resources whenever returning from the Outpost.
+    resetBattery();
+    resetDroneHealth();
 
     // 1. Register 3-frame movement animations for all 4 directions
     this.createAnimations();
@@ -118,6 +138,32 @@ export class MarsScene extends Phaser.Scene {
     this.titleText.setAlpha(0.72);
     this.titleText.setShadow(0, 2, 'rgba(0, 0, 0, 0.8)', 6, false, true);
 
+    this.batteryHud = new BatteryHUD(this);
+    this.batteryHud.setValue(currentBattery, MAX_BATTERY, false);
+    this.droneHealthHud = new DroneHealthHUD(this);
+    this.droneHealthHud.setValue(currentDroneHealth, MAX_DRONE_HEALTH, false);
+    this.unsubscribeBattery = subscribeBattery((value, max) => {
+      if (this.batteryHud) this.batteryHud.setValue(value, max, true);
+    });
+    this.unsubscribeDroneHealth = subscribeDroneHealth((value, max) => {
+      if (this.droneHealthHud) this.droneHealthHud.setValue(value, max, true);
+    });
+
+    // Mars-only resource controls. Ignore key repeat so holding a key counts once.
+    this.onResourceKeyDown = (event) => {
+      if (event.repeat) return;
+      if (event.code === 'KeyO' || event.key === 'o' || event.key === 'O') {
+        this.reduceBattery(10);
+      } else if (event.code === 'Digit9' || event.key === '9') {
+        this.regainBattery(10);
+      } else if (event.code === 'KeyP' || event.key === 'p' || event.key === 'P') {
+        this.reduceDroneHealth(10);
+      } else if (event.code === 'Digit0' || event.key === '0') {
+        this.regainDroneHealth(10);
+      }
+    };
+    if (this.input.keyboard) this.input.keyboard.on('keydown', this.onResourceKeyDown);
+
     this.navButton = new SciFiButton(
       this,
       width / 2,
@@ -142,7 +188,7 @@ export class MarsScene extends Phaser.Scene {
     this.uiCamera.setZoom(1);
 
     // Main camera only renders game world; UI camera only renders UI elements
-    this.cameras.main.ignore([this.titleText, this.navButton]);
+    this.cameras.main.ignore([this.titleText, this.navButton, this.batteryHud, this.droneHealthHud]);
     this.uiCamera.ignore([this.bg, this.rover]);
 
     // 7. Configure camera zoom, follow target, and boundary clamps
@@ -162,12 +208,39 @@ export class MarsScene extends Phaser.Scene {
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.scale.off('resize', this.onResize, this);
       if (this.input.keyboard) {
+        this.input.keyboard.off('keydown', this.onResourceKeyDown);
         this.input.keyboard.removeAllKeys(true);
       }
+      if (this.unsubscribeBattery) {
+        this.unsubscribeBattery();
+        this.unsubscribeBattery = null;
+      }
+      if (this.unsubscribeDroneHealth) {
+        this.unsubscribeDroneHealth();
+        this.unsubscribeDroneHealth = null;
+      }
+      this.batteryHud = null;
+      this.droneHealthHud = null;
       if (this.rover && this.rover.anims) {
         this.rover.anims.stop();
       }
     });
+  }
+
+  reduceBattery(amount) {
+    return reduceBattery(amount);
+  }
+
+  regainBattery(amount) {
+    return regainBattery(amount);
+  }
+
+  reduceDroneHealth(amount) {
+    return reduceDroneHealth(amount);
+  }
+
+  regainDroneHealth(amount) {
+    return regainDroneHealth(amount);
   }
 
   createAnimations() {
@@ -271,6 +344,8 @@ export class MarsScene extends Phaser.Scene {
     if (this.navButton) {
       this.navButton.setPosition(width / 2, height - Math.max(54, height * 0.09));
     }
+    if (this.batteryHud) this.batteryHud.updateLayout(width, height, 3);
+    if (this.droneHealthHud) this.droneHealthHud.updateLayout(width, height, 4);
   }
 
   update(time, delta) {
