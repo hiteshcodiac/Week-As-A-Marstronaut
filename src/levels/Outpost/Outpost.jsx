@@ -7,10 +7,19 @@ import plantsAsset from './plants.png';
 import healthAsset from '../../game/ui/graphHUD/Health.png';
 import radiationAsset from '../../game/ui/graphHUD/radiation.png';
 import hungerAsset from '../../game/ui/graphHUD/hunger.png';
+import oxygenAsset from '../../game/ui/graphHUD/Oxygen.png';
+import waterAsset from '../../game/ui/graphHUD/Water.png';
+import temperatureAsset from '../../game/ui/graphHUD/Temperature.png';
+import timerAsset from '../../game/ui/graphHUD/Timer.png';
 import { SciFiButton } from '../../game/ui/SciFiButton.js';
 import { HealthHUD, HEALTH_HUD_TEXTURE_KEY } from '../../game/ui/HealthHUD.js';
 import { RadiationHUD, RADIATION_HUD_TEXTURE_KEY } from '../../game/ui/RadiationHUD.js';
 import { HungerHUD, HUNGER_HUD_TEXTURE_KEY } from '../../game/ui/HungerHUD.js';
+import {
+  EnvironmentalStatusHUD,
+  ENV_HUD_TEXTURE_KEYS,
+} from '../../game/ui/EnvironmentalStatusHUD.js';
+import { GameMessageBar } from '../../game/ui/GameMessageBar.js';
 import { Planter, PLANTER_CONFIG } from './Planter.js';
 import {
   takeDamage,
@@ -31,6 +40,9 @@ import {
   currentHunger,
   MAX_HUNGER,
   subscribeHunger,
+  showGameMessage,
+  clearGameMessage,
+  getCurrentGameMessage,
 } from '../../game/gameState.js';
 
 /**
@@ -70,6 +82,8 @@ export class OutpostScene extends Phaser.Scene {
     this.healthHud = null;
     this.radiationHud = null;
     this.hungerHud = null;
+    this.environmentalHud = null;
+    this.gameMessageBar = null;
     this.uiCamera = null;
     this.leftPlanter = null;
     this.rightPlanter = null;
@@ -103,6 +117,19 @@ export class OutpostScene extends Phaser.Scene {
     // Load Hunger HUD asset
     if (!this.textures.exists(HUNGER_HUD_TEXTURE_KEY)) {
       this.load.image(HUNGER_HUD_TEXTURE_KEY, hungerAsset);
+    }
+    // Load Environmental Status HUD assets (Oxygen, Water, Temperature, Timer)
+    if (!this.textures.exists(ENV_HUD_TEXTURE_KEYS.OXYGEN)) {
+      this.load.image(ENV_HUD_TEXTURE_KEYS.OXYGEN, oxygenAsset);
+    }
+    if (!this.textures.exists(ENV_HUD_TEXTURE_KEYS.WATER)) {
+      this.load.image(ENV_HUD_TEXTURE_KEYS.WATER, waterAsset);
+    }
+    if (!this.textures.exists(ENV_HUD_TEXTURE_KEYS.TEMPERATURE)) {
+      this.load.image(ENV_HUD_TEXTURE_KEYS.TEMPERATURE, temperatureAsset);
+    }
+    if (!this.textures.exists(ENV_HUD_TEXTURE_KEYS.TIMER)) {
+      this.load.image(ENV_HUD_TEXTURE_KEYS.TIMER, timerAsset);
     }
     // Load Planter (plants.png) asset
     if (!this.textures.exists(PLANTER_CONFIG.TEXTURE_KEY)) {
@@ -181,6 +208,12 @@ export class OutpostScene extends Phaser.Scene {
     this.hungerHud = new HungerHUD(this);
     this.hungerHud.setValue(currentHunger, MAX_HUNGER, false);
 
+    // Environmental Status HUD (Top-Right: Oxygen, Water, Temperature, Timer)
+    this.environmentalHud = new EnvironmentalStatusHUD(this);
+
+    // Global Gameplay Message Bar (underneath scene title)
+    this.gameMessageBar = new GameMessageBar(this);
+
     // Subscribe to health changes
     this.unsubscribeHealth = subscribeHealth((hp, max) => {
       if (this.healthHud) {
@@ -208,6 +241,12 @@ export class OutpostScene extends Phaser.Scene {
     // Radiation: U (reduce 10), 8 (regain 10)
     this.onKeyDown = (event) => {
       if (event.repeat) return; // Prevent repeated triggers while held down
+
+      if (event.code === 'KeyT' || event.key === 't' || event.key === 'T') {
+        this.scene.pause();
+        this.scene.launch('MissionStatusScene');
+        return;
+      }
 
       if (event.code === 'KeyY' || event.key === 'y' || event.key === 'Y') {
         this.takeDamage(10);
@@ -257,6 +296,8 @@ export class OutpostScene extends Phaser.Scene {
       this.healthHud,
       this.radiationHud,
       this.hungerHud,
+      this.environmentalHud,
+      this.gameMessageBar,
     ]);
     this.uiCamera.ignore([
       this.bg,
@@ -300,6 +341,14 @@ export class OutpostScene extends Phaser.Scene {
       }
       if (this.player && this.player.anims) {
         this.player.anims.stop();
+      }
+      if (this.environmentalHud) {
+        this.environmentalHud.destroy();
+        this.environmentalHud = null;
+      }
+      if (this.gameMessageBar) {
+        this.gameMessageBar.destroy();
+        this.gameMessageBar = null;
       }
       this.leftPlanter = null;
       this.rightPlanter = null;
@@ -497,9 +546,27 @@ export class OutpostScene extends Phaser.Scene {
     if (this.hungerHud) {
       this.hungerHud.updateLayout(width, height, 2);
     }
+    if (this.environmentalHud) {
+      this.environmentalHud.updateLayout(width, height);
+    }
+    if (this.gameMessageBar) {
+      this.gameMessageBar.updateLayout(width, height, this.titleText.y);
+    }
     if (this.navButton) {
       this.navButton.setPosition(width / 2, height - Math.max(54, height * 0.09));
     }
+  }
+
+  showGameMessage(msg) {
+    return showGameMessage(msg);
+  }
+
+  clearGameMessage() {
+    return clearGameMessage();
+  }
+
+  getCurrentGameMessage() {
+    return getCurrentGameMessage();
   }
 
   update(time, delta) {

@@ -24,33 +24,33 @@ export const ROVER_COLLISION_RADIUS = 14;
  * Hitbox factors are reduced to focus specifically on the tight solid base of each rock.
  */
 export const ROCK_FRAMES = {
-  rock_1:  { x: 11,  y: 11,  width: 110, height: 72, hitboxWidthFactor: 0.60, hitboxHeightFactor: 0.42, offsetY: 4 },
-  rock_2:  { x: 141, y: 23,  width: 89,  height: 51, hitboxWidthFactor: 0.58, hitboxHeightFactor: 0.40, offsetY: 3 },
-  rock_3:  { x: 253, y: 31,  width: 66,  height: 40, hitboxWidthFactor: 0.56, hitboxHeightFactor: 0.40, offsetY: 2 },
-  rock_4:  { x: 350, y: 20,  width: 55,  height: 58, hitboxWidthFactor: 0.54, hitboxHeightFactor: 0.45, offsetY: 3 },
-  rock_5:  { x: 434, y: 20,  width: 55,  height: 56, hitboxWidthFactor: 0.54, hitboxHeightFactor: 0.45, offsetY: 3 },
-  rock_6:  { x: 521, y: 20,  width: 42,  height: 57, hitboxWidthFactor: 0.54, hitboxHeightFactor: 0.45, offsetY: 3 },
-  rock_7:  { x: 595, y: 19,  width: 64,  height: 57, hitboxWidthFactor: 0.58, hitboxHeightFactor: 0.42, offsetY: 3 },
-  rock_8:  { x: 10,  y: 102, width: 83,  height: 59, hitboxWidthFactor: 0.60, hitboxHeightFactor: 0.42, offsetY: 3 },
-  rock_9:  { x: 121, y: 114, width: 57,  height: 39, hitboxWidthFactor: 0.58, hitboxHeightFactor: 0.42, offsetY: 2 },
-  rock_10: { x: 351, y: 103, width: 52,  height: 53, hitboxWidthFactor: 0.56, hitboxHeightFactor: 0.45, offsetY: 3 },
-  rock_11: { x: 427, y: 101, width: 61,  height: 59, hitboxWidthFactor: 0.58, hitboxHeightFactor: 0.42, offsetY: 3 },
-  rock_12: { x: 571, y: 105, width: 95,  height: 59, hitboxWidthFactor: 0.62, hitboxHeightFactor: 0.42, offsetY: 3 },
-  rock_13: { x: 202, y: 120, width: 38,  height: 28, hitboxWidthFactor: 0.54, hitboxHeightFactor: 0.40, offsetY: 1 },
-  rock_14: { x: 271, y: 121, width: 42,  height: 26, hitboxWidthFactor: 0.54, hitboxHeightFactor: 0.40, offsetY: 1 },
-  rock_15: { x: 509, y: 121, width: 41,  height: 21, hitboxWidthFactor: 0.54, hitboxHeightFactor: 0.40, offsetY: 1 },
-  rock_16: { x: 204, y: 208, width: 22,  height: 14, hitboxWidthFactor: 0.52, hitboxHeightFactor: 0.38, offsetY: 1 },
-  rock_17: { x: 266, y: 192, width: 51,  height: 36, hitboxWidthFactor: 0.56, hitboxHeightFactor: 0.40, offsetY: 2 },
-  rock_18: { x: 357, y: 198, width: 28,  height: 22, hitboxWidthFactor: 0.54, hitboxHeightFactor: 0.40, offsetY: 1 },
-  rock_19: { x: 400, y: 236, width: 98,  height: 44, hitboxWidthFactor: 0.62, hitboxHeightFactor: 0.40, offsetY: 3 },
-  rock_20: { x: 568, y: 201, width: 62,  height: 41, hitboxWidthFactor: 0.58, hitboxHeightFactor: 0.42, offsetY: 2 },
-  rock_21: { x: 0,   y: 248, width: 66,  height: 42, hitboxWidthFactor: 0.58, hitboxHeightFactor: 0.42, offsetY: 2 },
-  rock_22: { x: 144, y: 260, width: 48,  height: 19, hitboxWidthFactor: 0.54, hitboxHeightFactor: 0.40, offsetY: 1 },
-  rock_23: { x: 334, y: 262, width: 90,  height: 48, hitboxWidthFactor: 0.60, hitboxHeightFactor: 0.42, offsetY: 3 },
-  rock_24: { x: 505, y: 292, width: 24,  height: 13, hitboxWidthFactor: 0.52, hitboxHeightFactor: 0.38, offsetY: 1 },
+  rock_1: { x: 11, y: 11, width: 110, height: 72, hitboxWidthFactor: 0.60, hitboxHeightFactor: 0.42, offsetY: 4 },
+  rock_2: { x: 141, y: 23, width: 89, height: 51, hitboxWidthFactor: 0.58, hitboxHeightFactor: 0.40, offsetY: 3 },
+  rock_3: { x: 253, y: 31, width: 66, height: 40, hitboxWidthFactor: 0.56, hitboxHeightFactor: 0.40, offsetY: 2 },
+  rock_4: { x: 350, y: 20, width: 55, height: 58, hitboxWidthFactor: 0.54, hitboxHeightFactor: 0.45, offsetY: 3 },
+  rock_5: { x: 434, y: 20, width: 55, height: 56, hitboxWidthFactor: 0.54, hitboxHeightFactor: 0.45, offsetY: 3 },
+  rock_6: { x: 521, y: 20, width: 42, height: 57, hitboxWidthFactor: 0.54, hitboxHeightFactor: 0.45, offsetY: 3 },
+  rock_7: { x: 595, y: 19, width: 64, height: 57, hitboxWidthFactor: 0.58, hitboxHeightFactor: 0.42, offsetY: 3 },
+  rock_8: { x: 10, y: 102, width: 83, height: 59, hitboxWidthFactor: 0.60, hitboxHeightFactor: 0.42, offsetY: 3 },
+  rock_9: { x: 121, y: 114, width: 57, height: 39, hitboxWidthFactor: 0.58, hitboxHeightFactor: 0.42, offsetY: 2 },
+  rock_10: { x: 351, y: 103, width: 52, height: 53, hitboxWidthFactor: 0.56, hitboxHeightFactor: 0.45, offsetY: 3 },
+  rock_11: { x: 427, y: 101, width: 61, height: 59, hitboxWidthFactor: 0.58, hitboxHeightFactor: 0.42, offsetY: 3 },
+  rock_12: { x: 571, y: 105, width: 95, height: 59, hitboxWidthFactor: 0.62, hitboxHeightFactor: 0.42, offsetY: 3 },
+  rock_13: { x: 202, y: 120, width: 38, height: 28, hitboxWidthFactor: 0.54, hitboxHeightFactor: 0.40, offsetY: 1 },
+  rock_14: { x: 271, y: 121, width: 42, height: 26, hitboxWidthFactor: 0.54, hitboxHeightFactor: 0.40, offsetY: 1 },
+  rock_15: { x: 509, y: 121, width: 41, height: 21, hitboxWidthFactor: 0.54, hitboxHeightFactor: 0.40, offsetY: 1 },
+  rock_16: { x: 204, y: 208, width: 22, height: 14, hitboxWidthFactor: 0.52, hitboxHeightFactor: 0.38, offsetY: 1 },
+  rock_17: { x: 266, y: 192, width: 51, height: 36, hitboxWidthFactor: 0.56, hitboxHeightFactor: 0.40, offsetY: 2 },
+  rock_18: { x: 357, y: 198, width: 28, height: 22, hitboxWidthFactor: 0.54, hitboxHeightFactor: 0.40, offsetY: 1 },
+  rock_19: { x: 400, y: 236, width: 98, height: 44, hitboxWidthFactor: 0.62, hitboxHeightFactor: 0.40, offsetY: 3 },
+  rock_20: { x: 568, y: 201, width: 62, height: 41, hitboxWidthFactor: 0.58, hitboxHeightFactor: 0.42, offsetY: 2 },
+  rock_21: { x: 0, y: 248, width: 66, height: 42, hitboxWidthFactor: 0.58, hitboxHeightFactor: 0.42, offsetY: 2 },
+  rock_22: { x: 144, y: 260, width: 48, height: 19, hitboxWidthFactor: 0.54, hitboxHeightFactor: 0.40, offsetY: 1 },
+  rock_23: { x: 334, y: 262, width: 90, height: 48, hitboxWidthFactor: 0.60, hitboxHeightFactor: 0.42, offsetY: 3 },
+  rock_24: { x: 505, y: 292, width: 24, height: 13, hitboxWidthFactor: 0.52, hitboxHeightFactor: 0.38, offsetY: 1 },
   rock_25: { x: 525, y: 288, width: 137, height: 87, hitboxWidthFactor: 0.62, hitboxHeightFactor: 0.42, offsetY: 4 },
-  rock_26: { x: 108, y: 306, width: 62,  height: 53, hitboxWidthFactor: 0.58, hitboxHeightFactor: 0.42, offsetY: 3 },
-  rock_27: { x: 197, y: 302, width: 80,  height: 42, hitboxWidthFactor: 0.58, hitboxHeightFactor: 0.40, offsetY: 2 },
+  rock_26: { x: 108, y: 306, width: 62, height: 53, hitboxWidthFactor: 0.58, hitboxHeightFactor: 0.42, offsetY: 3 },
+  rock_27: { x: 197, y: 302, width: 80, height: 42, hitboxWidthFactor: 0.58, hitboxHeightFactor: 0.40, offsetY: 2 },
 };
 
 /**
@@ -178,7 +178,8 @@ export function generateSeededRockLayout(seed = 0x5a17f00d, options = {}) {
   const rocks = [];
 
   for (const s of sections) {
-    const count = 12 + Math.floor(rng() * 7); // 12 - 18 per section
+    //    const count = 12 + Math.floor(rng() * 7); // 12 - 18 per         ion
+    const count = 25 + Math.floor(rng() * 11); // 25–35 per section
     let placed = 0;
     let attempts = 0;
 

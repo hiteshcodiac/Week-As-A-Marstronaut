@@ -7,8 +7,17 @@ import martianRocksAsset from './Martian Rocks.png';
 import { SciFiButton } from '../../game/ui/SciFiButton.js';
 import batteryAsset from '../../game/ui/graphHUD/battery.png';
 import droneHealthAsset from '../../game/ui/graphHUD/DroneHealth.png';
+import oxygenAsset from '../../game/ui/graphHUD/Oxygen.png';
+import waterAsset from '../../game/ui/graphHUD/Water.png';
+import temperatureAsset from '../../game/ui/graphHUD/Temperature.png';
+import timerAsset from '../../game/ui/graphHUD/Timer.png';
 import { BatteryHUD, BATTERY_HUD_TEXTURE_KEY } from '../../game/ui/BatteryHUD.js';
 import { DroneHealthHUD, DRONE_HEALTH_HUD_TEXTURE_KEY } from '../../game/ui/DroneHealthHUD.js';
+import {
+  EnvironmentalStatusHUD,
+  ENV_HUD_TEXTURE_KEYS,
+} from '../../game/ui/EnvironmentalStatusHUD.js';
+import { GameMessageBar } from '../../game/ui/GameMessageBar.js';
 import { Rock } from './Rock.js';
 import {
   MARTIAN_ROCKS_TEXTURE_KEY,
@@ -20,6 +29,7 @@ import {
 import {
   reduceBattery, regainBattery, resetBattery, subscribeBattery, currentBattery, MAX_BATTERY,
   reduceDroneHealth, regainDroneHealth, resetDroneHealth, subscribeDroneHealth, currentDroneHealth, MAX_DRONE_HEALTH,
+  showGameMessage, clearGameMessage, getCurrentGameMessage,
 } from '../../game/gameState.js';
 
 /**
@@ -29,8 +39,8 @@ import {
  * ============================================================================
  */
 export const MARS_CONFIG = {
-  MARS_VISIBLE_FRACTION: 0.30, // Fraction of Mars background visible at once (zoom level)
-  ROVER_DISPLAY_HEIGHT: 80,     // Rendered on-screen height of the rover in pixels
+  MARS_VISIBLE_FRACTION: 0.20, // Fraction of Mars background visible at once (zoom level)
+  ROVER_DISPLAY_HEIGHT: 100,     // Rendered on-screen height of the rover in pixels
   ROVER_SPEED: 150,             // Rover movement speed in world pixels per second
   ROVER_ANIMATION_FPS: 8,       // Frame rate for the 3-frame movement animations
   ROVER_SCREEN_X: 0.50,         // Normalized horizontal screen anchor (0.50 = center)
@@ -58,6 +68,8 @@ export class MarsScene extends Phaser.Scene {
     this.navButton = null;
     this.batteryHud = null;
     this.droneHealthHud = null;
+    this.environmentalHud = null;
+    this.gameMessageBar = null;
     this.uiCamera = null;
     this.rocks = [];
     this.proximityDebugContainer = null;
@@ -97,6 +109,19 @@ export class MarsScene extends Phaser.Scene {
     // Load Martian Rocks sprite sheet
     if (!this.textures.exists(MARTIAN_ROCKS_TEXTURE_KEY)) {
       this.load.image(MARTIAN_ROCKS_TEXTURE_KEY, martianRocksAsset);
+    }
+    // Load Environmental Status HUD assets (Oxygen, Water, Temperature, Timer)
+    if (!this.textures.exists(ENV_HUD_TEXTURE_KEYS.OXYGEN)) {
+      this.load.image(ENV_HUD_TEXTURE_KEYS.OXYGEN, oxygenAsset);
+    }
+    if (!this.textures.exists(ENV_HUD_TEXTURE_KEYS.WATER)) {
+      this.load.image(ENV_HUD_TEXTURE_KEYS.WATER, waterAsset);
+    }
+    if (!this.textures.exists(ENV_HUD_TEXTURE_KEYS.TEMPERATURE)) {
+      this.load.image(ENV_HUD_TEXTURE_KEYS.TEMPERATURE, temperatureAsset);
+    }
+    if (!this.textures.exists(ENV_HUD_TEXTURE_KEYS.TIMER)) {
+      this.load.image(ENV_HUD_TEXTURE_KEYS.TIMER, timerAsset);
     }
   }
 
@@ -170,6 +195,12 @@ export class MarsScene extends Phaser.Scene {
     this.batteryHud.setValue(currentBattery, MAX_BATTERY, false);
     this.droneHealthHud = new DroneHealthHUD(this);
     this.droneHealthHud.setValue(currentDroneHealth, MAX_DRONE_HEALTH, false);
+
+    // Environmental Status HUD (Top-Right: Oxygen, Water, Temperature, Timer)
+    this.environmentalHud = new EnvironmentalStatusHUD(this);
+
+    // Global Gameplay Message Bar (underneath scene title)
+    this.gameMessageBar = new GameMessageBar(this);
     this.unsubscribeBattery = subscribeBattery((value, max) => {
       if (this.batteryHud) this.batteryHud.setValue(value, max, true);
     });
@@ -225,6 +256,8 @@ export class MarsScene extends Phaser.Scene {
       this.batteryHud,
       this.droneHealthHud,
       this.proximityDebugContainer,
+      this.environmentalHud,
+      this.gameMessageBar,
     ]);
     this.uiCamera.ignore([this.bg, this.rover, ...this.rocks]);
 
@@ -262,6 +295,14 @@ export class MarsScene extends Phaser.Scene {
       }
       this.batteryHud = null;
       this.droneHealthHud = null;
+      if (this.environmentalHud) {
+        this.environmentalHud.destroy();
+        this.environmentalHud = null;
+      }
+      if (this.gameMessageBar) {
+        this.gameMessageBar.destroy();
+        this.gameMessageBar = null;
+      }
       this.rocks = [];
       this.proximityDebugContainer = null;
       this.proximityDebugText = null;
@@ -388,15 +429,19 @@ export class MarsScene extends Phaser.Scene {
     if (this.navButton) {
       this.navButton.setPosition(width / 2, height - Math.max(54, height * 0.09));
     }
-    if (this.batteryHud) this.batteryHud.updateLayout(width, height, 3);
-    if (this.droneHealthHud) this.droneHealthHud.updateLayout(width, height, 4);
+    if (this.batteryHud) this.batteryHud.updateLayout(width, height, 0);
+    if (this.droneHealthHud) this.droneHealthHud.updateLayout(width, height, 1);
+    if (this.environmentalHud) this.environmentalHud.updateLayout(width, height);
+    if (this.gameMessageBar) {
+      this.gameMessageBar.updateLayout(width, height, this.titleText.y);
+    }
     if (this.proximityDebugContainer) {
-      this.proximityDebugContainer.setPosition(width / 2, Math.max(76, height * 0.12));
+      this.proximityDebugContainer.setPosition(width / 2, Math.max(116, height * 0.17));
     }
   }
 
   createProximityDebugBadge(width, height) {
-    const container = this.add.container(width / 2, Math.max(76, height * 0.12));
+    const container = this.add.container(width / 2, Math.max(116, height * 0.17));
     container.setDepth(1000);
 
     const bg = this.add.graphics();
@@ -453,6 +498,18 @@ export class MarsScene extends Phaser.Scene {
         },
       });
     });
+  }
+
+  showGameMessage(msg) {
+    return showGameMessage(msg);
+  }
+
+  clearGameMessage() {
+    return clearGameMessage();
+  }
+
+  getCurrentGameMessage() {
+    return getCurrentGameMessage();
   }
 
   onRockNearby(rock) {

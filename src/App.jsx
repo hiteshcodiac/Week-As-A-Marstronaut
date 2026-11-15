@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import Phaser from 'phaser';
 import MarsScene from './levels/Mars/Mars.jsx';
 import OutpostScene from './levels/Outpost/Outpost.jsx';
+import MissionStatusScene from './levels/Outpost/MissionStatusScene.js';
 import './App.css';
 
 function App() {
@@ -32,7 +33,7 @@ function App() {
         pixelArt: false,
         powerPreference: 'high-performance',
       },
-      scene: [MarsScene, OutpostScene],
+      scene: [MarsScene, OutpostScene, MissionStatusScene],
       backgroundColor: '#030408',
     };
 
