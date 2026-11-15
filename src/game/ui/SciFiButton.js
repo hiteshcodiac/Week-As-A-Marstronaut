@@ -65,10 +65,10 @@ export class SciFiButton extends Phaser.GameObjects.Container {
     // Add children in rendering order
     this.add([this.glow, this.bg, this.border, this.label]);
 
-    // Setup interactive zone with explicit centered geometry
+    // Setup interactive zone with centered geometry matching Phaser Container displayOrigin
     this.setSize(width, height);
     this.setInteractive({
-      hitArea: new Phaser.Geom.Rectangle(-width / 2, -height / 2, width, height),
+      hitArea: new Phaser.Geom.Rectangle(0, 0, width, height),
       hitAreaCallback: Phaser.Geom.Rectangle.Contains,
       useHandCursor: true,
     });
