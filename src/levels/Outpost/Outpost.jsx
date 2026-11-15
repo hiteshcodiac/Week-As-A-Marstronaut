@@ -3,6 +3,7 @@ import Phaser from 'phaser';
 import outpostBg from './Outpost.png';
 import marsBg from '../Mars/Mars.png';
 import astronautSheet from './Astronaut Pixel Art Walk Cycle Sheet.png';
+import plantsAsset from './plants.png';
 import healthAsset from '../../game/ui/graphHUD/Health.png';
 import radiationAsset from '../../game/ui/graphHUD/radiation.png';
 import hungerAsset from '../../game/ui/graphHUD/hunger.png';
@@ -10,6 +11,7 @@ import { SciFiButton } from '../../game/ui/SciFiButton.js';
 import { HealthHUD, HEALTH_HUD_TEXTURE_KEY } from '../../game/ui/HealthHUD.js';
 import { RadiationHUD, RADIATION_HUD_TEXTURE_KEY } from '../../game/ui/RadiationHUD.js';
 import { HungerHUD, HUNGER_HUD_TEXTURE_KEY } from '../../game/ui/HungerHUD.js';
+import { Planter, PLANTER_CONFIG } from './Planter.js';
 import {
   takeDamage,
   regainHealth,
@@ -69,6 +71,9 @@ export class OutpostScene extends Phaser.Scene {
     this.radiationHud = null;
     this.hungerHud = null;
     this.uiCamera = null;
+    this.leftPlanter = null;
+    this.rightPlanter = null;
+    this.interactionPopup = null;
     this.currentDirection = 'down';
     this.cursors = null;
     this.keys = null;
@@ -98,6 +103,10 @@ export class OutpostScene extends Phaser.Scene {
     // Load Hunger HUD asset
     if (!this.textures.exists(HUNGER_HUD_TEXTURE_KEY)) {
       this.load.image(HUNGER_HUD_TEXTURE_KEY, hungerAsset);
+    }
+    // Load Planter (plants.png) asset
+    if (!this.textures.exists(PLANTER_CONFIG.TEXTURE_KEY)) {
+      this.load.image(PLANTER_CONFIG.TEXTURE_KEY, plantsAsset);
     }
     // Programmatically extract astronaut 192x256 frames (4 rows x 8 cols = 32 frames)
     if (!this.textures.exists('astronaut')) {
@@ -134,6 +143,11 @@ export class OutpostScene extends Phaser.Scene {
     if (this.player.texture) {
       this.player.texture.setFilter(Phaser.Textures.FilterMode.NEAREST);
     }
+
+    // 3b. Create Environmental Planter Objects (Left & Right) and Proximity Popup
+    this.leftPlanter = new Planter(this, PLANTER_CONFIG.LEFT);
+    this.rightPlanter = new Planter(this, PLANTER_CONFIG.RIGHT);
+    this.interactionPopup = this.createInteractionPopup();
 
     // 4. Setup keyboard controls (Arrow keys + WASD, case-insensitive)
     if (this.input.keyboard) {
@@ -244,7 +258,13 @@ export class OutpostScene extends Phaser.Scene {
       this.radiationHud,
       this.hungerHud,
     ]);
-    this.uiCamera.ignore([this.bg, this.player]);
+    this.uiCamera.ignore([
+      this.bg,
+      this.player,
+      this.leftPlanter,
+      this.rightPlanter,
+      this.interactionPopup,
+    ]);
 
     // 7. Configure camera zoom, follow target, and boundary clamps
     this.updateCameraAndBounds(width, height);
@@ -281,7 +301,57 @@ export class OutpostScene extends Phaser.Scene {
       if (this.player && this.player.anims) {
         this.player.anims.stop();
       }
+      this.leftPlanter = null;
+      this.rightPlanter = null;
+      this.interactionPopup = null;
     });
+  }
+
+  createInteractionPopup() {
+    const cfg = PLANTER_CONFIG.POPUP;
+    const container = this.add.container(0, 0);
+    container.setDepth(2000); // Above player and environmental objects
+
+    // Sci-fi styled popup panel
+    const bg = this.add.graphics();
+    const w = cfg.width;
+    const h = cfg.height;
+    const r = 4;
+
+    // Glow border
+    bg.lineStyle(2, cfg.glowColor, 0.4);
+    bg.strokeRoundedRect(-w / 2 - 1, -h / 2 - 1, w + 2, h + 2, r);
+
+    // Crisp border & dark background
+    bg.fillStyle(cfg.bgColor, cfg.bgAlpha);
+    bg.fillRoundedRect(-w / 2, -h / 2, w, h, r);
+    bg.lineStyle(1, cfg.borderColor, 0.9);
+    bg.strokeRoundedRect(-w / 2, -h / 2, w, h, r);
+
+    // Empty text label for future interactive prompt/action
+    const label = this.add.text(0, 0, '', {
+      fontFamily: "'Rajdhani', 'Orbitron', 'Segoe UI', system-ui, sans-serif",
+      fontSize: '11px',
+      fontStyle: '700',
+      color: '#4deeea',
+      align: 'center',
+    });
+    label.setOrigin(0.5, 0.5);
+
+    container.add([bg, label]);
+    container.setVisible(false);
+    return container;
+  }
+
+  checkPlanterCollision(testFeetX, testFeetY) {
+    const radius = PLANTER_CONFIG.PLAYER_COLLISION.radius;
+    if (this.leftPlanter && this.leftPlanter.checkCollision(testFeetX, testFeetY, radius)) {
+      return true;
+    }
+    if (this.rightPlanter && this.rightPlanter.checkCollision(testFeetX, testFeetY, radius)) {
+      return true;
+    }
+    return false;
   }
 
   takeDamage(amount) {
@@ -466,18 +536,51 @@ export class OutpostScene extends Phaser.Scene {
         speed *= Math.SQRT1_2;
       }
 
-      // Move player in world space (camera follows, so environment scrolls in opposite direction)
-      // Clamped to background boundaries so empty space is never exposed
-      const nextX = this.player.x + vx * speed;
-      const nextY = this.player.y + vy * speed;
+      const feetOffset = PLANTER_CONFIG.PLAYER_COLLISION.offsetY;
+      let nextX = this.player.x;
+      let nextY = this.player.y;
 
-      this.player.x = Phaser.Math.Clamp(nextX, this.minX, this.maxX);
-      this.player.y = Phaser.Math.Clamp(nextY, this.minY, this.maxY);
+      // Axis-independent collision checking so player can slide along planter edges smoothly
+      if (vx !== 0) {
+        const candidateX = Phaser.Math.Clamp(this.player.x + vx * speed, this.minX, this.maxX);
+        if (!this.checkPlanterCollision(candidateX, this.player.y + feetOffset)) {
+          nextX = candidateX;
+        }
+      }
+
+      if (vy !== 0) {
+        const candidateY = Phaser.Math.Clamp(this.player.y + vy * speed, this.minY, this.maxY);
+        if (!this.checkPlanterCollision(nextX, candidateY + feetOffset)) {
+          nextY = candidateY;
+        }
+      }
+
+      this.player.x = nextX;
+      this.player.y = nextY;
     } else {
       // When movement key is released: stop animation and stay on frame 0 of current direction
       if (this.player.anims.isPlaying) {
         this.player.anims.stop();
         this.player.setFrame(IDLE_FRAMES[this.currentDirection]);
+      }
+    }
+
+    // Dynamic depth sorting based on Y position so player renders behind or in front of planters
+    this.player.setDepth(this.player.y + PLANTER_CONFIG.PLAYER_COLLISION.offsetY);
+
+    // Proximity interaction popup detection (works independently for both planters)
+    const nearLeft = this.leftPlanter && this.leftPlanter.checkProximity(this.player.x, this.player.y);
+    const nearRight = this.rightPlanter && this.rightPlanter.checkProximity(this.player.x, this.player.y);
+
+    if (this.interactionPopup) {
+      if (nearLeft || nearRight) {
+        this.interactionPopup.setPosition(
+          this.player.x,
+          this.player.y + PLANTER_CONFIG.POPUP.offsetY
+        );
+        this.interactionPopup.setVisible(true);
+      } else {
+        this.interactionPopup.setVisible(false);
       }
     }
   }
