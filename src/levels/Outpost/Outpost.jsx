@@ -20,6 +20,9 @@ import {
   ENV_HUD_TEXTURE_KEYS,
 } from '../../game/ui/EnvironmentalStatusHUD.js';
 import { GameMessageBar } from '../../game/ui/GameMessageBar.js';
+import { DoubleStormModal } from '../../game/ui/DoubleStormModal.js';
+import { marsEnvironmentalSimulator } from '../../simulation/marsEnvironmentalSimulator.js';
+import { startDoubleStormEvent } from '../../game/events/doubleStormState.js';
 import { Planter, PLANTER_CONFIG } from './Planter.js';
 import {
   takeDamage,
@@ -260,11 +263,20 @@ export class OutpostScene extends Phaser.Scene {
         this.reduceHunger(10);
       } else if (event.code === 'Digit7' || event.key === '7') {
         this.regainHunger(10);
+      } else if (event.code === 'KeyK' || event.key === 'k' || event.key === 'K') {
+        startDoubleStormEvent();
       }
     };
     if (this.input.keyboard) {
       this.input.keyboard.on('keydown', this.onKeyDown);
     }
+
+    // Initialize environmental simulation layer
+    marsEnvironmentalSimulator.start();
+    marsEnvironmentalSimulator.setSceneContext('Outpost', false);
+
+    // Double Storm decision interface modal
+    this.doubleStormModal = new DoubleStormModal(this);
 
     this.navButton = new SciFiButton(
       this,
@@ -298,6 +310,7 @@ export class OutpostScene extends Phaser.Scene {
       this.hungerHud,
       this.environmentalHud,
       this.gameMessageBar,
+      this.doubleStormModal,
     ]);
     this.uiCamera.ignore([
       this.bg,
@@ -349,6 +362,10 @@ export class OutpostScene extends Phaser.Scene {
       if (this.gameMessageBar) {
         this.gameMessageBar.destroy();
         this.gameMessageBar = null;
+      }
+      if (this.doubleStormModal) {
+        this.doubleStormModal.destroy();
+        this.doubleStormModal = null;
       }
       this.leftPlanter = null;
       this.rightPlanter = null;
