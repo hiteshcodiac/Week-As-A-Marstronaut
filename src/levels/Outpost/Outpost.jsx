@@ -3,7 +3,30 @@ import Phaser from 'phaser';
 import outpostBg from './Outpost.png';
 import marsBg from '../Mars/Mars.png';
 import astronautSheet from './Astronaut Pixel Art Walk Cycle Sheet.png';
+import healthAsset from '../../game/ui/graphHUD/Health.png';
+import radiationAsset from '../../game/ui/graphHUD/radiation.png';
+import hungerAsset from '../../game/ui/graphHUD/hunger.png';
 import { SciFiButton } from '../../game/ui/SciFiButton.js';
+import { HealthHUD, HEALTH_HUD_TEXTURE_KEY } from '../../game/ui/HealthHUD.js';
+import { RadiationHUD, RADIATION_HUD_TEXTURE_KEY } from '../../game/ui/RadiationHUD.js';
+import { HungerHUD, HUNGER_HUD_TEXTURE_KEY } from '../../game/ui/HungerHUD.js';
+import {
+  takeDamage,
+  updateHealthBar,
+  currentHealth,
+  MAX_HEALTH,
+  subscribeHealth,
+  reduceRadiation,
+  updateRadiationBar,
+  currentRadiation,
+  MAX_RADIATION,
+  subscribeRadiation,
+  reduceHunger,
+  updateHungerBar,
+  currentHunger,
+  MAX_HUNGER,
+  subscribeHunger,
+} from '../../game/gameState.js';
 
 /**
  * ============================================================================
@@ -14,7 +37,7 @@ import { SciFiButton } from '../../game/ui/SciFiButton.js';
 export const OUTPOST_CONFIG = {
   OUTPOST_VISIBLE_FRACTION: 0.40, // Fraction of Outpost background visible at once (zoom level)
   PLAYER_DISPLAY_HEIGHT: 200,      // Rendered on-screen height of the astronaut in pixels
-  PLAYER_SPEED: 150,              // Astronaut movement speed in world pixels per second
+  PLAYER_SPEED: 200,              // Astronaut movement speed in world pixels per second
   WALK_ANIMATION_FPS: 10,         // Frame rate for the 8-frame walking cycle animations
   PLAYER_SCREEN_X: 0.50,          // Normalized horizontal screen anchor (0.50 = center)
   PLAYER_SCREEN_Y: 0.50,          // Normalized vertical screen anchor (0.50 = center)
@@ -39,6 +62,9 @@ export class OutpostScene extends Phaser.Scene {
     this.player = null;
     this.titleText = null;
     this.navButton = null;
+    this.healthHud = null;
+    this.radiationHud = null;
+    this.hungerHud = null;
     this.uiCamera = null;
     this.currentDirection = 'down';
     this.cursors = null;
@@ -57,6 +83,18 @@ export class OutpostScene extends Phaser.Scene {
     // Proactively preload Mars background for return transition
     if (!this.textures.exists('mars-bg')) {
       this.load.image('mars-bg', marsBg);
+    }
+    // Load Health HUD asset
+    if (!this.textures.exists(HEALTH_HUD_TEXTURE_KEY)) {
+      this.load.image(HEALTH_HUD_TEXTURE_KEY, healthAsset);
+    }
+    // Load Radiation HUD asset
+    if (!this.textures.exists(RADIATION_HUD_TEXTURE_KEY)) {
+      this.load.image(RADIATION_HUD_TEXTURE_KEY, radiationAsset);
+    }
+    // Load Hunger HUD asset
+    if (!this.textures.exists(HUNGER_HUD_TEXTURE_KEY)) {
+      this.load.image(HUNGER_HUD_TEXTURE_KEY, hungerAsset);
     }
     // Programmatically extract astronaut 192x256 frames (4 rows x 8 cols = 32 frames)
     if (!this.textures.exists('astronaut')) {
@@ -105,7 +143,7 @@ export class OutpostScene extends Phaser.Scene {
       });
     }
 
-    // 5. Create UI overlay (Title and Navigation Button)
+    // 5. Create UI overlay (Title, Health HUD, and Navigation Button)
     this.titleText = this.add.text(width / 2, Math.max(36, height * 0.07), 'OUTPOST', {
       fontFamily: "'Rajdhani', 'Orbitron', 'Segoe UI', system-ui, sans-serif",
       fontSize: '22px',
@@ -116,6 +154,52 @@ export class OutpostScene extends Phaser.Scene {
     this.titleText.setOrigin(0.5, 0.5);
     this.titleText.setAlpha(0.72);
     this.titleText.setShadow(0, 2, 'rgba(0, 0, 0, 0.8)', 6, false, true);
+
+    this.healthHud = new HealthHUD(this);
+    this.healthHud.setHealth(currentHealth, MAX_HEALTH);
+
+    this.radiationHud = new RadiationHUD(this);
+    this.radiationHud.setValue(currentRadiation, MAX_RADIATION, false);
+
+    this.hungerHud = new HungerHUD(this);
+    this.hungerHud.setValue(currentHunger, MAX_HUNGER, false);
+
+    // Subscribe to health changes
+    this.unsubscribeHealth = subscribeHealth((hp, max) => {
+      if (this.healthHud) {
+        this.healthHud.setHealth(hp, max);
+      }
+    });
+
+    // Subscribe to radiation changes
+    this.unsubscribeRadiation = subscribeRadiation((val, max) => {
+      if (this.radiationHud) {
+        this.radiationHud.setValue(val, max, true);
+      }
+    });
+
+    // Subscribe to hunger changes
+    this.unsubscribeHunger = subscribeHunger((val, max) => {
+      if (this.hungerHud) {
+        this.hungerHud.setValue(val, max, true);
+      }
+    });
+
+    // Temporary keyboard testing: 'Y' for Health, 'U' for Radiation, 'I' for Hunger
+    this.onKeyDown = (event) => {
+      if (event.repeat) return; // Prevent repeated triggers while held down
+
+      if (event.code === 'KeyY' || event.key === 'y' || event.key === 'Y') {
+        this.takeDamage(10);
+      } else if (event.code === 'KeyU' || event.key === 'u' || event.key === 'U') {
+        this.reduceRadiation(10);
+      } else if (event.code === 'KeyI' || event.key === 'i' || event.key === 'I') {
+        this.reduceHunger(10);
+      }
+    };
+    if (this.input.keyboard) {
+      this.input.keyboard.on('keydown', this.onKeyDown);
+    }
 
     this.navButton = new SciFiButton(
       this,
@@ -141,7 +225,13 @@ export class OutpostScene extends Phaser.Scene {
     this.uiCamera.setZoom(1);
 
     // Main camera only renders game world; UI camera only renders UI elements
-    this.cameras.main.ignore([this.titleText, this.navButton]);
+    this.cameras.main.ignore([
+      this.titleText,
+      this.navButton,
+      this.healthHud,
+      this.radiationHud,
+      this.hungerHud,
+    ]);
     this.uiCamera.ignore([this.bg, this.player]);
 
     // 7. Configure camera zoom, follow target, and boundary clamps
@@ -161,12 +251,49 @@ export class OutpostScene extends Phaser.Scene {
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.scale.off('resize', this.onResize, this);
       if (this.input.keyboard) {
+        this.input.keyboard.off('keydown', this.onKeyDown);
         this.input.keyboard.removeAllKeys(true);
+      }
+      if (this.unsubscribeHealth) {
+        this.unsubscribeHealth();
+        this.unsubscribeHealth = null;
+      }
+      if (this.unsubscribeRadiation) {
+        this.unsubscribeRadiation();
+        this.unsubscribeRadiation = null;
+      }
+      if (this.unsubscribeHunger) {
+        this.unsubscribeHunger();
+        this.unsubscribeHunger = null;
       }
       if (this.player && this.player.anims) {
         this.player.anims.stop();
       }
     });
+  }
+
+  takeDamage(amount) {
+    return takeDamage(amount);
+  }
+
+  updateHealthBar() {
+    updateHealthBar();
+  }
+
+  reduceRadiation(amount) {
+    return reduceRadiation(amount);
+  }
+
+  updateRadiationBar() {
+    updateRadiationBar();
+  }
+
+  reduceHunger(amount) {
+    return reduceHunger(amount);
+  }
+
+  updateHungerBar() {
+    updateHungerBar();
   }
 
   createAnimations() {
@@ -266,6 +393,15 @@ export class OutpostScene extends Phaser.Scene {
     }
     if (this.titleText) {
       this.titleText.setPosition(width / 2, Math.max(36, height * 0.07));
+    }
+    if (this.healthHud) {
+      this.healthHud.updateLayout(width, height);
+    }
+    if (this.radiationHud) {
+      this.radiationHud.updateLayout(width, height, 1);
+    }
+    if (this.hungerHud) {
+      this.hungerHud.updateLayout(width, height, 2);
     }
     if (this.navButton) {
       this.navButton.setPosition(width / 2, height - Math.max(54, height * 0.09));
