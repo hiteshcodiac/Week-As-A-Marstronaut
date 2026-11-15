@@ -269,3 +269,147 @@ export function resetDroneHealth() {
   return currentDroneHealth;
 }
 
+// ============================================================================
+// ENVIRONMENTAL STATUS HUD SYSTEM (OXYGEN, WATER, TEMPERATURE, TIMER)
+// ============================================================================
+export const environmentalStats = {
+  oxygen: 98,
+  water: 120,
+  temperature: -63,
+  timer: '12:45',
+};
+
+const environmentalListeners = new Set();
+
+/**
+ * Returns a copy of the current environmental stats.
+ * @returns {{ oxygen: number, water: number, temperature: number, timer: string }}
+ */
+export function getEnvironmentalStats() {
+  return { ...environmentalStats };
+}
+
+/**
+ * Subscribes a listener to receive environmental updates.
+ * @param {Function} callback - Function(environmentalStats)
+ * @returns {Function} Unsubscribe function
+ */
+export function subscribeEnvironmental(callback) {
+  environmentalListeners.add(callback);
+  return () => environmentalListeners.delete(callback);
+}
+
+/**
+ * Notifies all subscribed listeners to update the Environmental HUD.
+ */
+export function notifyEnvironmental() {
+  const current = getEnvironmentalStats();
+  for (const callback of environmentalListeners) {
+    try {
+      callback(current);
+    } catch (err) {
+      console.error('Error in environmental listener:', err);
+    }
+  }
+}
+
+/**
+ * Updates Oxygen percentage value and updates HUD.
+ * @param {number|string} value
+ */
+export function updateOxygen(value) {
+  environmentalStats.oxygen = value;
+  notifyEnvironmental();
+  return environmentalStats.oxygen;
+}
+
+/**
+ * Updates Water volume value (in Liters) and updates HUD.
+ * @param {number|string} value
+ */
+export function updateWater(value) {
+  environmentalStats.water = value;
+  notifyEnvironmental();
+  return environmentalStats.water;
+}
+
+/**
+ * Updates Temperature value (in °C) and updates HUD.
+ * @param {number|string} value
+ */
+export function updateTemperature(value) {
+  environmentalStats.temperature = value;
+  notifyEnvironmental();
+  return environmentalStats.temperature;
+}
+
+/**
+ * Updates remaining event Timer string (e.g. "12:45") and updates HUD.
+ * @param {string} value
+ */
+export function updateTimer(value) {
+  environmentalStats.timer = value;
+  notifyEnvironmental();
+  return environmentalStats.timer;
+}
+
+// ============================================================================
+// GLOBAL GAMEPLAY MESSAGE BAR SYSTEM
+// ============================================================================
+export let currentGameMessage = '';
+
+const gameMessageListeners = new Set();
+
+/**
+ * Returns the currently displayed gameplay message.
+ * @returns {string}
+ */
+export function getCurrentGameMessage() {
+  return currentGameMessage;
+}
+
+/**
+ * Subscribes a listener to receive gameplay message updates.
+ * @param {Function} callback - Function(message)
+ * @returns {Function} Unsubscribe function
+ */
+export function subscribeGameMessage(callback) {
+  gameMessageListeners.add(callback);
+  return () => gameMessageListeners.delete(callback);
+}
+
+/**
+ * Displays a new global gameplay message in the message bar across Mars & Outpost.
+ * Replaces any existing message immediately. Accessible from anywhere in the game.
+ *
+ * @param {string} message
+ * @returns {string}
+ */
+export function showGameMessage(message) {
+  currentGameMessage = typeof message === 'string' ? message : String(message ?? '');
+  for (const callback of gameMessageListeners) {
+    try {
+      callback(currentGameMessage);
+    } catch (err) {
+      console.error('Error in game message listener:', err);
+    }
+  }
+  return currentGameMessage;
+}
+
+/**
+ * Clears the current gameplay message while keeping the message bar itself visible.
+ * @returns {string}
+ */
+export function clearGameMessage() {
+  return showGameMessage('');
+}
+
+// Global browser window attachment for easy accessibility from developer console or external scripts
+if (typeof window !== 'undefined') {
+  window.showGameMessage = showGameMessage;
+  window.clearGameMessage = clearGameMessage;
+  window.getCurrentGameMessage = getCurrentGameMessage;
+}
+
+
