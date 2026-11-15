@@ -19,6 +19,10 @@ import {
 } from '../../game/ui/EnvironmentalStatusHUD.js';
 import { GameMessageBar } from '../../game/ui/GameMessageBar.js';
 import { Rock } from './Rock.js';
+import { PowerComponent } from './PowerComponent.js';
+import { DoubleStormModal } from '../../game/ui/DoubleStormModal.js';
+import { marsEnvironmentalSimulator } from '../../simulation/marsEnvironmentalSimulator.js';
+import { startDoubleStormEvent } from '../../game/events/doubleStormState.js';
 import {
   MARTIAN_ROCKS_TEXTURE_KEY,
   ROCK_FRAMES,
@@ -219,9 +223,21 @@ export class MarsScene extends Phaser.Scene {
         this.reduceDroneHealth(10);
       } else if (event.code === 'Digit0' || event.key === '0') {
         this.regainDroneHealth(10);
+      } else if (event.code === 'KeyK' || event.key === 'k' || event.key === 'K') {
+        startDoubleStormEvent();
       }
     };
     if (this.input.keyboard) this.input.keyboard.on('keydown', this.onResourceKeyDown);
+
+    // Initialize environmental simulation layer
+    marsEnvironmentalSimulator.start();
+    marsEnvironmentalSimulator.setSceneContext('Mars', true);
+
+    // Outdoor physical Power Component for EVA retrieval objective
+    this.powerComponent = new PowerComponent(this);
+
+    // Double Storm decision interface modal
+    this.doubleStormModal = new DoubleStormModal(this);
 
     this.navButton = new SciFiButton(
       this,
@@ -258,8 +274,9 @@ export class MarsScene extends Phaser.Scene {
       this.proximityDebugContainer,
       this.environmentalHud,
       this.gameMessageBar,
+      this.doubleStormModal,
     ]);
-    this.uiCamera.ignore([this.bg, this.rover, ...this.rocks]);
+    this.uiCamera.ignore([this.bg, this.rover, ...this.rocks, this.powerComponent]);
 
     // 7. Configure camera zoom, follow target, and boundary clamps
     this.updateCameraAndBounds(width, height);
@@ -302,6 +319,14 @@ export class MarsScene extends Phaser.Scene {
       if (this.gameMessageBar) {
         this.gameMessageBar.destroy();
         this.gameMessageBar = null;
+      }
+      if (this.powerComponent) {
+        this.powerComponent.destroy();
+        this.powerComponent = null;
+      }
+      if (this.doubleStormModal) {
+        this.doubleStormModal.destroy();
+        this.doubleStormModal = null;
       }
       this.rocks = [];
       this.proximityDebugContainer = null;
@@ -599,6 +624,11 @@ export class MarsScene extends Phaser.Scene {
 
     // Dynamic depth sorting based on Y position so rover renders behind or in front of rocks
     this.rover.setDepth(this.rover.y);
+
+    // Power component proximity check
+    if (this.powerComponent) {
+      this.powerComponent.checkProximity(this.rover.x, this.rover.y);
+    }
 
     // Proximity event detection for every rock (relative to solid hitbox)
     for (let i = 0; i < this.rocks.length; i++) {
