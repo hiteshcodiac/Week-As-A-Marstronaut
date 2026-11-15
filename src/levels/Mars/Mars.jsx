@@ -3,11 +3,20 @@ import Phaser from 'phaser';
 import marsBg from './Mars.png';
 import outpostBg from '../Outpost/Outpost.png';
 import roverSheet from './mars_rover_sprites_transparent.png';
+import martianRocksAsset from './Martian Rocks.png';
 import { SciFiButton } from '../../game/ui/SciFiButton.js';
 import batteryAsset from '../../game/ui/graphHUD/battery.png';
 import droneHealthAsset from '../../game/ui/graphHUD/DroneHealth.png';
 import { BatteryHUD, BATTERY_HUD_TEXTURE_KEY } from '../../game/ui/BatteryHUD.js';
 import { DroneHealthHUD, DRONE_HEALTH_HUD_TEXTURE_KEY } from '../../game/ui/DroneHealthHUD.js';
+import { Rock } from './Rock.js';
+import {
+  MARTIAN_ROCKS_TEXTURE_KEY,
+  ROCK_FRAMES,
+  DEFAULT_ROCK_POSITIONS,
+  PROXIMITY_CONFIG,
+  ROVER_COLLISION_RADIUS,
+} from './rockConfig.js';
 import {
   reduceBattery, regainBattery, resetBattery, subscribeBattery, currentBattery, MAX_BATTERY,
   reduceDroneHealth, regainDroneHealth, resetDroneHealth, subscribeDroneHealth, currentDroneHealth, MAX_DRONE_HEALTH,
@@ -50,6 +59,10 @@ export class MarsScene extends Phaser.Scene {
     this.batteryHud = null;
     this.droneHealthHud = null;
     this.uiCamera = null;
+    this.rocks = [];
+    this.proximityDebugContainer = null;
+    this.proximityDebugText = null;
+    this.proximityDebugTimer = null;
     this.currentDirection = 'down';
     this.cursors = null;
     this.keys = null;
@@ -80,6 +93,10 @@ export class MarsScene extends Phaser.Scene {
     }
     if (!this.textures.exists(DRONE_HEALTH_HUD_TEXTURE_KEY)) {
       this.load.image(DRONE_HEALTH_HUD_TEXTURE_KEY, droneHealthAsset);
+    }
+    // Load Martian Rocks sprite sheet
+    if (!this.textures.exists(MARTIAN_ROCKS_TEXTURE_KEY)) {
+      this.load.image(MARTIAN_ROCKS_TEXTURE_KEY, martianRocksAsset);
     }
   }
 
@@ -114,6 +131,17 @@ export class MarsScene extends Phaser.Scene {
     if (this.rover.texture) {
       this.rover.texture.setFilter(Phaser.Textures.FilterMode.NEAREST);
     }
+
+    // 3b. Register rock sprite frames & generate world-anchored rocks
+    const rocksTexture = this.textures.get(MARTIAN_ROCKS_TEXTURE_KEY);
+    if (rocksTexture) {
+      for (const [key, def] of Object.entries(ROCK_FRAMES)) {
+        if (!rocksTexture.has(key)) {
+          rocksTexture.add(key, 0, def.x, def.y, def.width, def.height);
+        }
+      }
+    }
+    this.rocks = DEFAULT_ROCK_POSITIONS.map((pos) => new Rock(this, pos));
 
     // 4. Setup keyboard controls (Arrow keys + WASD, case-insensitive)
     if (this.input.keyboard) {
@@ -187,9 +215,18 @@ export class MarsScene extends Phaser.Scene {
     this.uiCamera.setScroll(0, 0);
     this.uiCamera.setZoom(1);
 
+    // 6b. Setup temporary proximity event debug badge on UI overlay
+    this.createProximityDebugBadge(width, height);
+
     // Main camera only renders game world; UI camera only renders UI elements
-    this.cameras.main.ignore([this.titleText, this.navButton, this.batteryHud, this.droneHealthHud]);
-    this.uiCamera.ignore([this.bg, this.rover]);
+    this.cameras.main.ignore([
+      this.titleText,
+      this.navButton,
+      this.batteryHud,
+      this.droneHealthHud,
+      this.proximityDebugContainer,
+    ]);
+    this.uiCamera.ignore([this.bg, this.rover, ...this.rocks]);
 
     // 7. Configure camera zoom, follow target, and boundary clamps
     this.updateCameraAndBounds(width, height);
@@ -219,8 +256,15 @@ export class MarsScene extends Phaser.Scene {
         this.unsubscribeDroneHealth();
         this.unsubscribeDroneHealth = null;
       }
+      if (this.proximityDebugTimer) {
+        this.proximityDebugTimer.remove(false);
+        this.proximityDebugTimer = null;
+      }
       this.batteryHud = null;
       this.droneHealthHud = null;
+      this.rocks = [];
+      this.proximityDebugContainer = null;
+      this.proximityDebugText = null;
       if (this.rover && this.rover.anims) {
         this.rover.anims.stop();
       }
@@ -346,6 +390,91 @@ export class MarsScene extends Phaser.Scene {
     }
     if (this.batteryHud) this.batteryHud.updateLayout(width, height, 3);
     if (this.droneHealthHud) this.droneHealthHud.updateLayout(width, height, 4);
+    if (this.proximityDebugContainer) {
+      this.proximityDebugContainer.setPosition(width / 2, Math.max(76, height * 0.12));
+    }
+  }
+
+  createProximityDebugBadge(width, height) {
+    const container = this.add.container(width / 2, Math.max(76, height * 0.12));
+    container.setDepth(1000);
+
+    const bg = this.add.graphics();
+    const w = 150;
+    const h = 28;
+    const r = 6;
+
+    bg.lineStyle(2, 0xff7b39, 0.4);
+    bg.strokeRoundedRect(-w / 2 - 1, -h / 2 - 1, w + 2, h + 2, r);
+
+    bg.fillStyle(0x090c13, 0.85);
+    bg.fillRoundedRect(-w / 2, -h / 2, w, h, r);
+    bg.lineStyle(1, 0xff9452, 0.9);
+    bg.strokeRoundedRect(-w / 2, -h / 2, w, h, r);
+
+    const text = this.add.text(0, 0, '', {
+      fontFamily: "'Rajdhani', 'Orbitron', 'Segoe UI', system-ui, sans-serif",
+      fontSize: '13px',
+      fontStyle: '700',
+      color: '#ffece0',
+      align: 'center',
+    });
+    text.setOrigin(0.5, 0.5);
+
+    container.add([bg, text]);
+    container.setVisible(false);
+    container.setAlpha(0);
+
+    this.proximityDebugContainer = container;
+    this.proximityDebugText = text;
+  }
+
+  showProximityDebug(message) {
+    if (!this.proximityDebugContainer || !this.proximityDebugText) return;
+    this.proximityDebugText.setText(message);
+    this.proximityDebugContainer.setAlpha(1);
+    this.proximityDebugContainer.setVisible(true);
+
+    if (this.proximityDebugTimer) {
+      this.proximityDebugTimer.remove(false);
+      this.proximityDebugTimer = null;
+    }
+
+    this.proximityDebugTimer = this.time.delayedCall(PROXIMITY_CONFIG.debugDuration, () => {
+      if (!this.proximityDebugContainer) return;
+      this.tweens.add({
+        targets: this.proximityDebugContainer,
+        alpha: 0,
+        duration: 250,
+        onComplete: () => {
+          if (this.proximityDebugContainer) {
+            this.proximityDebugContainer.setVisible(false);
+          }
+        },
+      });
+    });
+  }
+
+  onRockNearby(rock) {
+    // Reusable proximity event hook: called once when rover approaches a rock
+    // Active while rover remains inside proximity zone
+    // Left empty for now as requested
+    void rock;
+  }
+
+  onRockNearbyEnd(rock) {
+    // Reusable proximity event hook: called once when rover leaves a rock's proximity zone
+    // Left empty for now as requested
+    void rock;
+  }
+
+  checkRockCollision(roverX, roverY) {
+    for (let i = 0; i < this.rocks.length; i++) {
+      if (this.rocks[i].checkCollision(roverX, roverY, ROVER_COLLISION_RADIUS)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   update(time, delta) {
@@ -382,18 +511,55 @@ export class MarsScene extends Phaser.Scene {
         speed *= Math.SQRT1_2;
       }
 
-      // Move rover in world space (camera follows, so environment scrolls in opposite direction)
+      // Move rover in world space with axis-independent collision checking
       // Clamped to background boundaries so empty space is never exposed
-      const nextX = this.rover.x + vx * speed;
-      const nextY = this.rover.y + vy * speed;
+      let nextX = this.rover.x;
+      let nextY = this.rover.y;
 
-      this.rover.x = Phaser.Math.Clamp(nextX, this.minX, this.maxX);
-      this.rover.y = Phaser.Math.Clamp(nextY, this.minY, this.maxY);
+      if (vx !== 0) {
+        const candidateX = Phaser.Math.Clamp(this.rover.x + vx * speed, this.minX, this.maxX);
+        if (!this.checkRockCollision(candidateX, this.rover.y)) {
+          nextX = candidateX;
+        }
+      }
+
+      if (vy !== 0) {
+        const candidateY = Phaser.Math.Clamp(this.rover.y + vy * speed, this.minY, this.maxY);
+        if (!this.checkRockCollision(nextX, candidateY)) {
+          nextY = candidateY;
+        }
+      }
+
+      this.rover.x = nextX;
+      this.rover.y = nextY;
     } else {
       // When movement key is released: stop animation and stay on frame 0 of current direction
       if (this.rover.anims.isPlaying) {
         this.rover.anims.stop();
         this.rover.setFrame(IDLE_FRAMES[this.currentDirection]);
+      }
+    }
+
+    // Dynamic depth sorting based on Y position so rover renders behind or in front of rocks
+    this.rover.setDepth(this.rover.y);
+
+    // Proximity event detection for every rock (relative to solid hitbox)
+    for (let i = 0; i < this.rocks.length; i++) {
+      const rock = this.rocks[i];
+      const inRange = rock.checkProximity(this.rover.x, this.rover.y, PROXIMITY_CONFIG.hitboxMargin);
+
+      if (inRange) {
+        if (!rock.isNearby) {
+          rock.isNearby = true;
+          this.onRockNearby(rock);
+          this.showProximityDebug('ROCK NEARBY');
+        }
+      } else {
+        if (rock.isNearby) {
+          rock.isNearby = false;
+          this.onRockNearbyEnd(rock);
+          this.showProximityDebug('ROCK LEFT');
+        }
       }
     }
   }
