@@ -12,16 +12,19 @@ import { RadiationHUD, RADIATION_HUD_TEXTURE_KEY } from '../../game/ui/Radiation
 import { HungerHUD, HUNGER_HUD_TEXTURE_KEY } from '../../game/ui/HungerHUD.js';
 import {
   takeDamage,
+  regainHealth,
   updateHealthBar,
   currentHealth,
   MAX_HEALTH,
   subscribeHealth,
   reduceRadiation,
+  regainRadiation,
   updateRadiationBar,
   currentRadiation,
   MAX_RADIATION,
   subscribeRadiation,
   reduceHunger,
+  regainHunger,
   updateHungerBar,
   currentHunger,
   MAX_HUNGER,
@@ -185,16 +188,25 @@ export class OutpostScene extends Phaser.Scene {
       }
     });
 
-    // Temporary keyboard testing: 'Y' for Health, 'U' for Radiation, 'I' for Hunger
+    // Temporary keyboard testing:
+    // Health: Y (damage 10), 6 (regain 10)
+    // Hunger: I (reduce 10), 7 (regain 10)
+    // Radiation: U (reduce 10), 8 (regain 10)
     this.onKeyDown = (event) => {
       if (event.repeat) return; // Prevent repeated triggers while held down
 
       if (event.code === 'KeyY' || event.key === 'y' || event.key === 'Y') {
         this.takeDamage(10);
+      } else if (event.code === 'Digit6' || event.key === '6') {
+        this.regainHealth(10);
       } else if (event.code === 'KeyU' || event.key === 'u' || event.key === 'U') {
         this.reduceRadiation(10);
+      } else if (event.code === 'Digit8' || event.key === '8') {
+        this.regainRadiation(10);
       } else if (event.code === 'KeyI' || event.key === 'i' || event.key === 'I') {
         this.reduceHunger(10);
+      } else if (event.code === 'Digit7' || event.key === '7') {
+        this.regainHunger(10);
       }
     };
     if (this.input.keyboard) {
@@ -276,6 +288,10 @@ export class OutpostScene extends Phaser.Scene {
     return takeDamage(amount);
   }
 
+  regainHealth(amount) {
+    return regainHealth(amount);
+  }
+
   updateHealthBar() {
     updateHealthBar();
   }
@@ -284,12 +300,20 @@ export class OutpostScene extends Phaser.Scene {
     return reduceRadiation(amount);
   }
 
+  regainRadiation(amount) {
+    return regainRadiation(amount);
+  }
+
   updateRadiationBar() {
     updateRadiationBar();
   }
 
   reduceHunger(amount) {
     return reduceHunger(amount);
+  }
+
+  regainHunger(amount) {
+    return regainHunger(amount);
   }
 
   updateHungerBar() {
